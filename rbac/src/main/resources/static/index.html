@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panel de catálogos por rol</title>
+<style>
+  :root {
+    --fondo: #e9edf2;
+    --papel: #ffffff;
+    --tinta: #18222f;
+    --suave: #5d6b7c;
+    --linea: #cdd5df;
+    --acento: #1f4fd8;
+    --acento-fondo: #e3eaff;
+    --peligro: #b3261e;
+    --ok: #1a7a45;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fondo); color: var(--tinta);
+         font: 16px/1.5 "Segoe UI", system-ui, sans-serif; }
+  :focus-visible { outline: 3px solid var(--acento); outline-offset: 2px; }
+  header { background: var(--tinta); color: #fff; padding: 18px 24px;
+           display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; }
+  header h1 { margin: 0; font-size: 1.25rem; font-weight: 600; }
+  .roles { display: inline-flex; background: #2b3a4c; border-radius: 8px; padding: 4px; }
+  .roles button { border: 0; background: transparent; color: #c9d3df; padding: 8px 16px;
+                  border-radius: 6px; font: inherit; cursor: pointer; }
+  .roles button[aria-pressed="true"] { background: #fff; color: var(--tinta); font-weight: 600; }
+  main { max-width: 1100px; margin: 24px auto; padding: 0 16px; display: grid; gap: 24px;
+         grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); }
+  @media (max-width: 520px) { main { grid-template-columns: 1fr; } }
+  section { background: var(--papel); border: 1px solid var(--linea); border-radius: 10px; padding: 20px; min-width: 0; }
+  h2 { margin: 0 0 4px; font-size: 1.1rem; }
+  .nota { margin: 0 0 16px; color: var(--suave); font-size: .9rem; }
+  form { display: grid; gap: 12px; margin-bottom: 20px; }
+  label { display: grid; gap: 4px; font-size: .9rem; font-weight: 600; }
+  input { font: inherit; padding: 8px 10px; border: 1px solid var(--linea); border-radius: 6px; }
+  .fila { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .acciones { display: flex; gap: 8px; }
+  button.p, button.s, button.d { font: inherit; padding: 8px 14px; border-radius: 6px; cursor: pointer; border: 1px solid transparent; }
+  button.p { background: var(--acento); color: #fff; }
+  button.s { background: #fff; border-color: var(--linea); color: var(--tinta); }
+  button.d { background: #fff; border-color: var(--peligro); color: var(--peligro); }
+  .tabla { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--linea); white-space: nowrap; }
+  th { color: var(--suave); font-weight: 600; }
+  td.btns { display: flex; gap: 6px; }
+  td.btns button { padding: 4px 10px; font-size: .85rem; }
+  .bloqueo { background: var(--acento-fondo); border-radius: 8px; padding: 14px; color: var(--tinta); }
+  .vacio { color: var(--suave); padding: 12px 0; }
+  #estado { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--tinta);
+            color: #fff; padding: 10px 18px; border-radius: 8px; max-width: 90%; display: none; }
+  #estado.error { background: var(--peligro); }
+  #estado.ok { background: var(--ok); }
+  [hidden] { display: none !important; }
+  @media (prefers-reduced-motion: no-preference) { button { transition: background .15s; } }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Panel de catálogos</h1>
+  <div class="roles" role="group" aria-label="Rol activo">
+    <button type="button" data-rol="USUARIO" aria-pressed="true">Usuario</button>
+    <button type="button" data-rol="ADMIN" aria-pressed="false">Administrador</button>
+  </div>
+</header>
+
+<main>
+  <!-- USUARIOS -->
+  <section aria-labelledby="t-usu">
+    <h2 id="t-usu">Usuarios</h2>
+    <p class="nota" id="nota-usu"></p>
+
+    <form id="f-usu">
+      <input type="hidden" id="u-id">
+      <label>Nombre <input id="u-nombre" required></label>
+      <label>Correo <input id="u-email" type="email" required></label>
+      <div class="acciones">
+        <button class="p" type="submit" id="u-guardar">Agregar usuario</button>
+        <button class="s" type="button" id="u-cancelar" hidden>Cancelar edición</button>
+      </div>
+    </form>
+
+    <div id="lista-usu" hidden>
+      <div class="tabla">
+        <table>
+          <thead><tr><th>ID</th><th>Nombre</th><th>Correo</th><th>Acciones</th></tr></thead>
+          <tbody id="tb-usu"></tbody>
+        </table>
+      </div>
+    </div>
+    <p class="bloqueo" id="bloq-usu">El rol Usuario solo puede agregar registros. Cambia a Administrador para consultar, editar o eliminar.</p>
+  </section>
+
+  <!-- PRODUCTOS -->
+  <section aria-labelledby="t-prod">
+    <h2 id="t-prod">Productos</h2>
+    <p class="nota">Catálogo exclusivo del Administrador.</p>
+
+    <p class="bloqueo" id="bloq-prod">Este catálogo no está disponible para el rol Usuario.</p>
+
+    <div id="zona-prod" hidden>
+      <form id="f-prod">
+        <input type="hidden" id="p-id">
+        <label>Nombre <input id="p-nombre" required></label>
+        <label>Descripción <input id="p-desc"></label>
+        <div class="fila">
+          <label>Precio <input id="p-precio" type="number" min="0" step="0.01" required></label>
+          <label>Stock <input id="p-stock" type="number" min="0" step="1" value="0"></label>
+        </div>
+        <div class="acciones">
+          <button class="p" type="submit" id="p-guardar">Agregar producto</button>
+          <button class="s" type="button" id="p-cancelar" hidden>Cancelar edición</button>
+        </div>
+      </form>
+
+      <div class="tabla">
+        <table>
+          <thead><tr><th>ID</th><th>Nombre</th><th>Precio</th><th>Stock</th><th>Acciones</th></tr></thead>
+          <tbody id="tb-prod"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="estado" role="status" aria-live="polite"></div>
+
+<script>
+  // Rol activo: se envía en el encabezado X-Rol (lo lee RolHeaderFilter en Spring Boot)
+  let rol = 'USUARIO';
+  const $ = id => document.getElementById(id);
+  const esAdmin = () => rol === 'ADMIN';
+  const esc = t => String(t ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  let temporizador;
+  function aviso(texto, tipo) {
+    const e = $('estado');
+    e.textContent = texto;
+    e.className = tipo || '';
+    e.style.display = 'block';
+    clearTimeout(temporizador);
+    temporizador = setTimeout(() => e.style.display = 'none', 3500);
+  }
+
+  async function api(url, opciones = {}) {
+    const res = await fetch(url, {
+      ...opciones,
+      headers: { 'Content-Type': 'application/json', 'X-Rol': rol }
+    });
+    if (res.status === 401 || res.status === 403) {
+      throw new Error('Acceso denegado: el rol ' + (esAdmin() ? 'Administrador' : 'Usuario') + ' no tiene permiso para esta acción.');
+    }
+    if (res.status === 400) throw new Error('Datos no válidos. Revisa los campos e inténtalo de nuevo.');
+    if (res.status === 404) throw new Error('El registro ya no existe.');
+    if (!res.ok) throw new Error('Error del servidor (' + res.status + ').');
+    return res.status === 204 ? null : res.json();
+  }
+
+  // ---------- Rol ----------
+  document.querySelectorAll('.roles button').forEach(b => {
+    b.addEventListener('click', () => {
+      rol = b.dataset.rol;
+      document.querySelectorAll('.roles button').forEach(x => x.setAttribute('aria-pressed', x === b));
+      actualizarVista();
+    });
+  });
+
+  function actualizarVista() {
+    $('nota-usu').textContent = esAdmin()
+      ? 'Acceso completo: crear, consultar, actualizar y eliminar.'
+      : 'Solo puedes agregar nuevos registros.';
+    $('lista-usu').hidden = !esAdmin();
+    $('bloq-usu').hidden = esAdmin();
+    $('zona-prod').hidden = !esAdmin();
+    $('bloq-prod').hidden = esAdmin();
+    limpiarUsuario(); limpiarProducto();
+    if (esAdmin()) { cargarUsuarios(); cargarProductos(); }
+  }
+
+  // ---------- Usuarios ----------
+  async function cargarUsuarios() {
+    try {
+      const datos = await api('/api/usuarios');
+      $('tb-usu').innerHTML = datos.length ? datos.map(u => `
+        <tr><td>${u.id}</td><td>${esc(u.nombre)}</td><td>${esc(u.email)}</td>
+        <td class="btns">
+          <button class="s" data-editar-usu="${u.id}">Editar</button>
+          <button class="d" data-borrar-usu="${u.id}">Eliminar</button>
+        </td></tr>`).join('')
+        : '<tr><td colspan="4" class="vacio">Todavía no hay usuarios. Agrega el primero con el formulario.</td></tr>';
+      window._usuarios = datos;
+    } catch (e) { aviso(e.message, 'error'); }
+  }
+
+  function limpiarUsuario() {
+    $('f-usu').reset(); $('u-id').value = '';
+    $('u-guardar').textContent = 'Agregar usuario';
+    $('u-cancelar').hidden = true;
+  }
+
+  $('f-usu').addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const id = $('u-id').value;
+    const cuerpo = JSON.stringify({ nombre: $('u-nombre').value.trim(), email: $('u-email').value.trim() });
+    try {
+      await api(id ? '/api/usuarios/' + id : '/api/usuarios', { method: id ? 'PUT' : 'POST', body: cuerpo });
+      aviso(id ? 'Usuario actualizado' : 'Usuario agregado', 'ok');
+      limpiarUsuario();
+      if (esAdmin()) cargarUsuarios();
+    } catch (e) { aviso(e.message, 'error'); }
+  });
+
+  $('u-cancelar').addEventListener('click', limpiarUsuario);
+
+  $('tb-usu').addEventListener('click', async ev => {
+    const ed = ev.target.dataset.editarUsu, bo = ev.target.dataset.borrarUsu;
+    if (ed) {
+      const u = window._usuarios.find(x => x.id == ed);
+      $('u-id').value = u.id; $('u-nombre').value = u.nombre; $('u-email').value = u.email;
+      $('u-guardar').textContent = 'Guardar cambios';
+      $('u-cancelar').hidden = false;
+      $('u-nombre').focus();
+    }
+    if (bo && confirm('¿Eliminar este usuario?')) {
+      try { await api('/api/usuarios/' + bo, { method: 'DELETE' }); aviso('Usuario eliminado', 'ok'); cargarUsuarios(); }
+      catch (e) { aviso(e.message, 'error'); }
+    }
+  });
+
+  // ---------- Productos ----------
+  async function cargarProductos() {
+    try {
+      const datos = await api('/api/productos');
+      $('tb-prod').innerHTML = datos.length ? datos.map(p => `
+        <tr><td>${p.id}</td><td>${esc(p.nombre)}</td><td>$${Number(p.precio).toFixed(2)}</td><td>${p.stock ?? 0}</td>
+        <td class="btns">
+          <button class="s" data-editar-prod="${p.id}">Editar</button>
+          <button class="d" data-borrar-prod="${p.id}">Eliminar</button>
+        </td></tr>`).join('')
+        : '<tr><td colspan="5" class="vacio">Todavía no hay productos. Agrega el primero con el formulario.</td></tr>';
+      window._productos = datos;
+    } catch (e) { aviso(e.message, 'error'); }
+  }
+
+  function limpiarProducto() {
+    $('f-prod').reset(); $('p-id').value = '';
+    $('p-guardar').textContent = 'Agregar producto';
+    $('p-cancelar').hidden = true;
+  }
+
+  $('f-prod').addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const id = $('p-id').value;
+    const cuerpo = JSON.stringify({
+      nombre: $('p-nombre').value.trim(),
+      descripcion: $('p-desc').value.trim(),
+      precio: parseFloat($('p-precio').value),
+      stock: parseInt($('p-stock').value || '0', 10)
+    });
+    try {
+      await api(id ? '/api/productos/' + id : '/api/productos', { method: id ? 'PUT' : 'POST', body: cuerpo });
+      aviso(id ? 'Producto actualizado' : 'Producto agregado', 'ok');
+      limpiarProducto(); cargarProductos();
+    } catch (e) { aviso(e.message, 'error'); }
+  });
+
+  $('p-cancelar').addEventListener('click', limpiarProducto);
+
+  $('tb-prod').addEventListener('click', async ev => {
+    const ed = ev.target.dataset.editarProd, bo = ev.target.dataset.borrarProd;
+    if (ed) {
+      const p = window._productos.find(x => x.id == ed);
+      $('p-id').value = p.id; $('p-nombre').value = p.nombre; $('p-desc').value = p.descripcion || '';
+      $('p-precio').value = p.precio; $('p-stock').value = p.stock ?? 0;
+      $('p-guardar').textContent = 'Guardar cambios';
+      $('p-cancelar').hidden = false;
+      $('p-nombre').focus();
+    }
+    if (bo && confirm('¿Eliminar este producto?')) {
+      try { await api('/api/productos/' + bo, { method: 'DELETE' }); aviso('Producto eliminado', 'ok'); cargarProductos(); }
+      catch (e) { aviso(e.message, 'error'); }
+    }
+  });
+
+  actualizarVista();
+</script>
+</body>
+</html>
